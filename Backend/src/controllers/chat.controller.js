@@ -1,40 +1,31 @@
-import { generateStreamToken, upsertStreamUser } from "../lib/stream.js";
+import { generateStreamToken } from "../lib/stream.js";
 
 export async function getStreamToken(req, res) {
   try {
-    const user = req.user;
+    console.log("=== GET STREAM TOKEN REQUEST RECEIVED ===");
+    console.log("Auth User ID:", req.user?._id?.toString());
 
-    if (!user) {
+    if (!req.user || !req.user._id) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized: User context missing",
+        message: "Unauthorized - User details not found in request",
       });
     }
 
-    // 1. Sync user profile with Stream (non-blocking)
-    try {
-      await upsertStreamUser({
-        id: user._id.toString(),
-        name: user.fullName || user.email || "User",
-        image: user.profilePicture || "",
-      });
-    } catch (upsertErr) {
-      console.warn("Stream user upsert non-critical failure:", upsertErr?.message || upsertErr);
-    }
+    const userId = req.user._id.toString();
+    const token = generateStreamToken(userId);
 
-    // 2. Generate Stream Token
-    const streamToken = generateStreamToken(user._id.toString());
+    console.log("✅ Token successfully generated for user:", userId);
 
     return res.status(200).json({
       success: true,
-      token: streamToken,
+      token,
     });
   } catch (error) {
-    console.error("Error in getStreamToken controller:", error);
-
+    console.error("🔥 CRITICAL 500 ERROR IN getStreamToken:", error);
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error generating token",
+      message: error.message || "Failed to generate stream token",
     });
   }
 }

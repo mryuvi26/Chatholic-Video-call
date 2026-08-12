@@ -1,48 +1,44 @@
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import { StreamChat } from "stream-chat";
 
-export const protectRoute = async (req, res, next) => {
+export const generateStreamToken = (userId) => {
+  const apiKey = process.env.STREAM_API_KEY?.trim();
+  const apiSecret = process.env.STREAM_API_SECRET?.trim();
+
+  if (!apiKey || !apiSecret) {
+    throw new Error(
+      `STREAM CONFIG ERROR -> API Key present: ${!!apiKey}, API Secret present: ${!!apiSecret}`
+    );
+  }
+
+  if (!userId) {
+    throw new Error("STREAM CONFIG ERROR -> userId is undefined");
+  }
+
+  // Create server instance
+  const serverClient = StreamChat.getInstance(apiKey, apiSecret);
+  return serverClient.createToken(userId.toString());
+};
+
+export const upsertStreamUser = async (userData) => {
   try {
-    const token = req.cookies?.jwt;
+    const apiKey = process.env.STREAM_API_KEY?.trim();
+    const apiSecret = process.env.STREAM_API_SECRET?.trim();
 
-    
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized - No token provided",
-      });
+    if (!apiKey || !apiSecret) {
+      console.error("❌ STREAM_API_KEY or STREAM_API_SECRET is missing!");
+      return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const serverClient = StreamChat.getInstance(apiKey, apiSecret);
 
-    console.log("DECODED TOKEN:", decoded);
-
-    if (!decoded?.userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized - Invalid token",
-      });
-    }
-
-    const user = await User.findById(decoded.userId).select("-password");
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized - User not found",
-      });
-    }
-
-    req.user = user;
-
-    next();
-  } catch (error) {
-    console.error("JWT ERROR:", error.message);
-
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized",
+    await serverClient.upsertUser({
+      id: userData.id.toString(),
+      name: userData.name || userData.fullName || "User",
+      image: userData.image || userData.profilePic || userData.profilePicture || "",
     });
+
+    console.log(`✅ Stream user upserted: ${userData.id}`);
+  } catch (error) {
+    console.error("❌ Error upserting user in Stream:", error?.message || error);
   }
 };
