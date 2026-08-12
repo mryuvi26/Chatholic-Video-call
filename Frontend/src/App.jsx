@@ -32,71 +32,54 @@ function App() {
   const isOnboarded = authUser?.isOnboarded;
 
   return (
-    <StreamVideoProvider>
-      <div data-theme={theme}>
-        {/* Global incoming call handler */}
-        {isAuthenticated && isOnboarded && <IncomingCall />}
+    <div data-theme={theme}>
+      {/* Stream Video Provider ONLY initialized when user is authenticated & onboarded */}
+      {isAuthenticated && isOnboarded ? (
+        <StreamVideoProvider>
+          {/* Global incoming call handler */}
+          <IncomingCall />
 
-        <Routes>
-          {/* Home */}
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? (
-                isOnboarded ? (
-                  <Layout showSidebar={true}>
-                    <HomePage />
-                  </Layout>
-                ) : (
-                  <Navigate to="/onboarding" />
-                )
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
+          <Routes>
+            {/* Home */}
+            <Route
+              path="/"
+              element={
+                <Layout showSidebar={true}>
+                  <HomePage />
+                </Layout>
+              }
+            />
 
-          {/* Notifications */}
-          <Route
-            path="/notifications"
-            element={
-              isAuthenticated && isOnboarded ? (
+            {/* Notifications */}
+            <Route
+              path="/notifications"
+              element={
                 <Layout showSidebar={true}>
                   <NotificationsPage />
                 </Layout>
-              ) : (
-                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-              )
-            }
-          />
+              }
+            />
 
-          {/* Chat */}
-          <Route
-            path="/chat/:id"
-            element={
-              isAuthenticated && isOnboarded ? (
+            {/* Chat */}
+            <Route
+              path="/chat/:id"
+              element={
                 <Layout showSidebar={false}>
                   <ChatPage />
                 </Layout>
-              ) : (
-                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-              )
-            }
-          />
+              }
+            />
 
-          {/* Video Call */}
-          <Route
-            path="/call/:id"
-            element={
-              isAuthenticated && isOnboarded ? (
-                <CallPage />
-              ) : (
-                <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-              )
-            }
-          />
+            {/* Video Call */}
+            <Route path="/call/:id" element={<CallPage />} />
 
-          {/* Onboarding */}
+            {/* Catch-all redirect for authenticated onboarded user */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </StreamVideoProvider>
+      ) : (
+        /* Unauthenticated or Non-onboarded Routes */
+        <Routes>
           <Route
             path="/onboarding"
             element={
@@ -112,7 +95,6 @@ function App() {
             }
           />
 
-          {/* Login */}
           <Route
             path="/login"
             element={
@@ -124,18 +106,24 @@ function App() {
             }
           />
 
-          {/* Signup */}
           <Route
             path="/signup"
             element={
               !isAuthenticated ? <SignupPage /> : <Navigate to="/" />
             }
           />
-        </Routes>
 
-        <Toaster />
-      </div>
-    </StreamVideoProvider>
+          <Route
+            path="*"
+            element={
+              <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />
+            }
+          />
+        </Routes>
+      )}
+
+      <Toaster />
+    </div>
   );
 }
 

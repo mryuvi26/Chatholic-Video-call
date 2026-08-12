@@ -10,18 +10,18 @@ export default function StreamVideoProvider({ children }) {
   const [client, setClient] = useState(null);
 
   useEffect(() => {
-    if (!authUser) {
+    if (!authUser?._id) {
       if (client) {
-        client.disconnectUser();
+        client.disconnectUser().catch((err) =>
+          console.warn("Error disconnecting video user:", err)
+        );
         setClient(null);
       }
       return;
     }
 
-    // Agar client pehle se bana hua hai, toh dobara mat banao
-    if (client) return;
-
     let isMounted = true;
+    let videoClientInstance = null;
 
     const initStreamClient = async () => {
       try {
@@ -29,22 +29,23 @@ export default function StreamVideoProvider({ children }) {
         if (!tokenData?.token || !isMounted) return;
 
         const user = {
-          id: authUser._id || authUser.id,
-          name: authUser.fullName || authUser.name || "User",
-          image: authUser.profilePic || "",
+          id: authUser._id.toString(),
+          name: authUser.fullName || authUser.email || "User",
+          image: authUser.profilePicture || authUser.profilePic || "",
         };
 
-        const streamClient = StreamVideoClient.getOrCreateInstance({
+        // Bypass getOrCreateInstance cache by creating fresh instance
+        videoClientInstance = new StreamVideoClient({
           apiKey: STREAM_API_KEY,
           user,
           token: tokenData.token,
         });
 
         if (isMounted) {
-          setClient(streamClient);
+          setClient(videoClientInstance);
         }
       } catch (error) {
-        console.error("Error initializing Stream client:", error);
+        console.error("Error initializing Stream Video client:", error);
       }
     };
 
@@ -52,15 +53,24 @@ export default function StreamVideoProvider({ children }) {
 
     return () => {
       isMounted = false;
+      if (videoClientInstance) {
+        videoClientInstance.disconnectUser().catch((err) =>
+          console.warn("Error disconnecting video client on unmount:", err)
+        );
+      }
     };
-  }, [authUser?._id]); // YEH MAIN FIX HAI: Sirf User ID badalne par hi re-run hoga
+  }, [authUser?._id]);
 
   if (!authUser) {
     return <>{children}</>;
   }
 
   if (!client) {
-    return null; // Token fetch hone tak clean hold
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
   }
 
   return <StreamVideo client={client}>{children}</StreamVideo>;
