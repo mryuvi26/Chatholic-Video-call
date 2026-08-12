@@ -10,17 +10,24 @@ export const upsertStreamUser = async (userData) => {
       return;
     }
 
-    const client = new StreamChat(apiKey, apiSecret);
+    // Use getInstance instead of new StreamChat
+    const client = StreamChat.getInstance(apiKey, apiSecret);
 
-    if (!userData || !userData.id) return;
-
-    if (typeof client.upsertUser === "function") {
-      await client.upsertUser(userData);
-    } else if (typeof client.upsertUsers === "function") {
-      await client.upsertUsers([userData]);
+    if (!userData || !userData.id) {
+      console.error("❌ Invalid user data provided to upsertStreamUser");
+      return;
     }
+
+    // Direct upsert user in Stream Chat
+    await client.upsertUser({
+      id: userData.id.toString(),
+      name: userData.name || userData.fullName || "User",
+      image: userData.image || userData.profilePic || userData.profilePicture || "",
+    });
+
+    console.log(`✅ Stream user upserted: ${userData.id}`);
   } catch (error) {
-    console.error("Error upserting user in Stream:", error?.message || error);
+    console.error("❌ Error upserting user in Stream:", error?.message || error);
   }
 };
 
@@ -30,17 +37,18 @@ export const generateStreamToken = (userId) => {
     const apiSecret = process.env.STREAM_API_SECRET?.trim();
 
     if (!apiKey || !apiSecret) {
-      throw new Error("STREAM_API_KEY or STREAM_API_SECRET missing");
+      throw new Error("STREAM_API_KEY or STREAM_API_SECRET is missing in environment variables!");
     }
 
     if (!userId) {
-      throw new Error("User ID is required to generate token");
+      throw new Error("User ID is required to generate token!");
     }
 
-    const client = new StreamChat(apiKey, apiSecret);
+    // Use getInstance for server-side token generation
+    const client = StreamChat.getInstance(apiKey, apiSecret);
     return client.createToken(userId.toString());
   } catch (error) {
-    console.error("Error generating Stream token:", error?.message || error);
+    console.error("❌ Error generating Stream token:", error?.message || error);
     throw error;
   }
 };
