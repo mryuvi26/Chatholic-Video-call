@@ -6,19 +6,36 @@ export async function getRecommendedUsers(req, res) {
     const currentUserId = req.user._id;
     const currentUser = req.user;
 
+    // 1. Fetch all pending friend requests (sent or received)
+    const existingRequests = await FriendRequest.find({
+      $or: [{ sender: currentUserId }, { recipient: currentUserId }],
+      status: "pending",
+    });
+
+    // 2. Extract user IDs from existing requests
+    const pendingUserIds = existingRequests.map((req) =>
+      req.sender.toString() === currentUserId.toString()
+        ? req.recipient
+        : req.sender
+    );
+
+    // 3. Exclude self, existing friends, blocked users, and pending request users
+    const excludedIds = [
+      currentUserId,
+      ...(currentUser.friends || []),
+      ...(currentUser.blocked || []),
+      ...pendingUserIds,
+    ];
+
     const recommendedUsers = await User.find({
-      $and: [
-        { _id: { $ne: currentUserId } },
-        { _id: { $nin: currentUser.friends || [] } },
-        { _id: { $nin: currentUser.blocked || [] } },
-        { isOnboarded: true },
-      ],
+      _id: { $nin: excludedIds },
+      isOnboarded: true,
     }).select("-password");
 
-    res.status(200).json({ success: true, users: recommendedUsers });
+    return res.status(200).json({ success: true, users: recommendedUsers });
   } catch (error) {
     console.error("Error in getRecommendedUsers controller:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }
 
@@ -28,10 +45,10 @@ export async function getMyFriends(req, res) {
       .select("friends")
       .populate("friends", "fullName profilePicture nativeLanguage learningLanguage");
 
-    res.status(200).json(user ? user.friends : []);
+    return res.status(200).json(user ? user.friends : []);
   } catch (error) {
     console.error("Error in getMyFriends controller:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }
 
@@ -86,14 +103,14 @@ export async function sendFriendRequest(req, res) {
       status: "pending",
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Friend request sent successfully",
       friendRequest,
     });
   } catch (error) {
     console.error("Error in sendFriendRequest controller:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Internal Server Error",
     });
@@ -103,8 +120,8 @@ export async function sendFriendRequest(req, res) {
 export async function acceptFriendRequest(req, res) {
   try {
     const { id: requestId } = req.params;
-
     const friendRequest = await FriendRequest.findById(requestId);
+
     if (!friendRequest) {
       return res.status(404).json({
         success: false,
@@ -162,10 +179,10 @@ export async function getFriendRequests(req, res) {
       status: "accepted",
     }).populate("sender", "fullName profilePicture");
 
-    res.status(200).json({ success: true, incomingRequests, acceptedRequests });
+    return res.status(200).json({ success: true, incomingRequests, acceptedRequests });
   } catch (error) {
     console.error("Error in getFriendRequests controller:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }
 
@@ -176,9 +193,9 @@ export async function getOutgoingFriendReqs(req, res) {
       status: "pending",
     }).populate("recipient", "fullName profilePicture nativeLanguage learningLanguage");
 
-    res.status(200).json({ success: true, outgoingRequests });
+    return res.status(200).json({ success: true, outgoingRequests });
   } catch (error) {
     console.error("Error in getOutgoingFriendReqs controller:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }

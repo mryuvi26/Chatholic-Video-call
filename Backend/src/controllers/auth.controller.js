@@ -2,14 +2,16 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import { upsertStreamUser } from "../lib/stream.js";
 
-// Helper for consistent cookie options across environments
+// Cookie configuration
+const getCookieOptions = () => ({
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+});
+
 const setCookie = (res, token) => {
-  res.cookie("jwt", token, {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax", // "lax" prevents cookie dropping on Render HTTPS requests
-  });
+  res.cookie("jwt", token, getCookieOptions());
 };
 
 export async function signup(req, res) {
@@ -130,8 +132,21 @@ export async function login(req, res) {
 }
 
 export function logout(req, res) {
-  res.clearCookie("jwt");
+  // Clear cookie with exact matching options
+  const options = getCookieOptions();
+  delete options.maxAge; // remove maxAge for immediate deletion
+  res.clearCookie("jwt", options);
+
   res.status(200).json({ success: true, message: "Logout successful" });
+}
+
+export async function checkAuth(req, res) {
+  try {
+    res.status(200).json({ success: true, user: req.user });
+  } catch (error) {
+    console.error("Error in checkAuth Controller:", error);
+    res.status(500).json({ message: "Server error during auth check" });
+  }
 }
 
 export async function onboarding(req, res) {
