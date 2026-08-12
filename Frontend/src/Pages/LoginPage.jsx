@@ -34,7 +34,7 @@ const LoginPage = () => {
             <ShipWheelIcon className='text-info size-9' />
             <span className='text-3xl font-bold font-mono bg-clip-text text-transparent bg-linear-to-r
                             from-blue-300 to-cyan-600 uppercase tracking-wider'>
-              Talk Meet
+              ChatHolic
             </span>
           </div>
 
