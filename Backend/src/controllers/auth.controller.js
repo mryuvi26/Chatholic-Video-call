@@ -1,8 +1,16 @@
-
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import { upsertStreamUser } from "../lib/stream.js";
 
+// Helper for consistent cookie options across environments
+const setCookie = (res, token) => {
+  res.cookie("jwt", token, {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", // "lax" prevents cookie dropping on Render HTTPS requests
+  });
+};
 
 export async function signup(req, res) {
   const { email, password, fullName } = req.body;
@@ -12,9 +20,7 @@ export async function signup(req, res) {
       return res.status(400).json({ message: "All fields are required" });
     }
     if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,7 +28,6 @@ export async function signup(req, res) {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
-    // check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already in use" });
@@ -38,30 +43,23 @@ export async function signup(req, res) {
       profilePicture: profilePictureUrl,
     });
 
+    // Upsert to GetStream
     try {
       await upsertStreamUser({
         id: newUser._id.toString(),
         name: newUser.fullName,
         image: newUser.profilePicture || "",
       });
-      console.log(`Stream user created for ${newUser.fullName} ${newUser.email} `);
-
-
+      console.log(`Stream user created for ${newUser.fullName}`);
     } catch (error) {
-      console.log("Error creating stream user:", error);
-      
+      console.error("Error creating stream user during signup:", error);
     }
 
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
 
-    res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    setCookie(res, token);
 
     return res.status(201).json({
       message: "User created successfully",
@@ -70,6 +68,7 @@ export async function signup(req, res) {
         email: newUser.email,
         fullName: newUser.fullName,
         profilePicture: newUser.profilePicture,
+        isOnboarded: newUser.isOnboarded,
       },
     });
   } catch (error) {
@@ -77,14 +76,13 @@ export async function signup(req, res) {
     res.status(500).json({ message: "Server error during signup" });
   }
 }
+
 export async function login(req, res) {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
     const user = await User.findOne({ email });
@@ -93,29 +91,44 @@ export async function login(req, res) {
     }
 
     const isPasswordCorrect = await user.matchPassword(password);
-    if (!isPasswordCorrect)
-      return res.status(401).json({ message: "Invalid  password" });
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    // Ensure Stream user exists on login
+    try {
+      await upsertStreamUser({
+        id: user._id.toString(),
+        name: user.fullName,
+        image: user.profilePicture || "",
+      });
+    } catch (error) {
+      console.error("Error syncing stream user during login:", error);
+    }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
 
-    res.cookie("jwt", token, {
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    setCookie(res, token);
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
+      user: {
+        _id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        profilePicture: user.profilePicture,
+        isOnboarded: user.isOnboarded,
+      },
     });
   } catch (error) {
     console.error("Error in Login Controller:", error);
     res.status(500).json({ message: "Server error during login" });
   }
 }
+
 export function logout(req, res) {
   res.clearCookie("jwt");
   res.status(200).json({ success: true, message: "Logout successful" });
@@ -123,17 +136,15 @@ export function logout(req, res) {
 
 export async function onboarding(req, res) {
   try {
-    // Check karo ki middleware ne user diya ya nahi
     if (!req.user) {
-      return res.status(401).json({ message: "Bhai, pehle login to kar lo!" });
+      return res.status(401).json({ message: "Please log in first" });
     }
 
     const userId = req.user._id;
     const { fullName, bio, nativeLanguage, learningLanguage, location } = req.body;
 
-    // Yaha || (OR) use karo
     if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
-      return res.status(400).json({ message: "Saari details bharna zaroori hai!" });
+      return res.status(400).json({ message: "All fields are required" });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -143,12 +154,23 @@ export async function onboarding(req, res) {
     ).select("-password");
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "Database mein user nahi mila" });
+      return res.status(404).json({ message: "User not found in database" });
     }
 
-    res.status(200).json({ message: "Onboarding Done!", user: updatedUser });
+    // Sync updated details with Stream
+    try {
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePicture || "",
+      });
+    } catch (error) {
+      console.error("Error updating stream user during onboarding:", error);
+    }
 
+    res.status(200).json({ message: "Onboarding completed!", user: updatedUser });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in Onboarding Controller:", error);
+    res.status(500).json({ message: "Server error during onboarding" });
   }
 }
