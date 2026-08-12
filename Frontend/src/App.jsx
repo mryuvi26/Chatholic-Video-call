@@ -18,7 +18,7 @@ import { useThemeStore } from "./Store/useThemeStore.js";
 import PageLoader from "./components/PageLoader.jsx";
 
 import StreamVideoProvider from "./components/StreamVideoProvider";
-import IncomingCall from "./components/IncomingCall";
+import IncomingCall from "./components/Incomingcall";
 
 function App() {
   const { authUser, isLoading } = useAuthUser();
