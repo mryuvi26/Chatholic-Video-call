@@ -12,13 +12,13 @@ import { Toaster } from "react-hot-toast";
 
 import useAuthUser from "./hooks/useAuthUser";
 import Layout from "./components/Layout.jsx";
+import PageLoader from "./components/PageLoader.jsx";
 
 import { useThemeStore } from "./Store/useThemeStore.js";
 
-import PageLoader from "./components/PageLoader.jsx";
-
-import StreamVideoProvider from "./components/StreamVideoProvider";
-import IncomingCall from "./components/Incomingcall";
+import StreamVideoProvider from "./components/StreamVideoProvider.jsx";
+import StreamChatProvider from "./components/StreamChatProvider.jsx";
+import IncomingCall from "./components/Incomingcall.jsx";
 
 function App() {
   const { authUser, isLoading } = useAuthUser();
@@ -33,53 +33,54 @@ function App() {
 
   return (
     <div data-theme={theme}>
-      {/* Stream Video Provider ONLY initialized when user is authenticated & onboarded */}
       {isAuthenticated && isOnboarded ? (
         <StreamVideoProvider>
-          {/* Global incoming call handler */}
-          <IncomingCall />
+          <StreamChatProvider>
+            {/* Global incoming call handler */}
+            <IncomingCall />
 
-          <Routes>
-            {/* Home */}
-            <Route
-              path="/"
-              element={
-                <Layout showSidebar={true}>
-                  <HomePage />
-                </Layout>
-              }
-            />
+            <Routes>
+              {/* Home */}
+              <Route
+                path="/"
+                element={
+                  <Layout showSidebar={true}>
+                    <HomePage />
+                  </Layout>
+                }
+              />
 
-            {/* Notifications */}
-            <Route
-              path="/notifications"
-              element={
-                <Layout showSidebar={true}>
-                  <NotificationsPage />
-                </Layout>
-              }
-            />
+              {/* Notifications */}
+              <Route
+                path="/notifications"
+                element={
+                  <Layout showSidebar={true}>
+                    <NotificationsPage />
+                  </Layout>
+                }
+              />
 
-            {/* Chat */}
-            <Route
-              path="/chat/:id"
-              element={
-                <Layout showSidebar={false}>
-                  <ChatPage />
-                </Layout>
-              }
-            />
+              {/* Chat */}
+              <Route
+                path="/chat/:id"
+                element={
+                  <Layout showSidebar={false}>
+                    <ChatPage />
+                  </Layout>
+                }
+              />
 
-            {/* Video Call */}
-            <Route path="/call/:id" element={<CallPage />} />
+              {/* Video Call */}
+              <Route path="/call/:id" element={<CallPage />} />
 
-            {/* Catch-all redirect for authenticated onboarded user */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+              {/* Unknown route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </StreamChatProvider>
         </StreamVideoProvider>
       ) : (
-        /* Unauthenticated or Non-onboarded Routes */
         <Routes>
+          {/* Onboarding */}
           <Route
             path="/onboarding"
             element={
@@ -87,42 +88,59 @@ function App() {
                 !isOnboarded ? (
                   <OnboardingPage />
                 ) : (
-                  <Navigate to="/" />
+                  <Navigate to="/" replace />
                 )
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/login" replace />
               )
             }
           />
 
+          {/* Login */}
           <Route
             path="/login"
             element={
               !isAuthenticated ? (
                 <LoginPage />
               ) : (
-                <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+                <Navigate
+                  to={isOnboarded ? "/" : "/onboarding"}
+                  replace
+                />
               )
             }
           />
 
+          {/* Signup */}
           <Route
             path="/signup"
             element={
-              !isAuthenticated ? <SignupPage /> : <Navigate to="/" />
+              !isAuthenticated ? (
+                <SignupPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
 
+          {/* Unknown route */}
           <Route
             path="*"
             element={
-              <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />
+              <Navigate
+                to={
+                  isAuthenticated
+                    ? "/onboarding"
+                    : "/login"
+                }
+                replace
+              />
             }
           />
         </Routes>
       )}
 
-      <Toaster />
+      <Toaster position="top-right" />
     </div>
   );
 }
