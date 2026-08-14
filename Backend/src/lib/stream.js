@@ -1,51 +1,74 @@
 import { StreamChat } from "stream-chat";
+import { StreamClient } from "@stream-io/node-sdk";
 
-// 1. Export generateStreamToken
-export const generateStreamToken = (userId) => {
-  const apiKey = process.env.STREAM_API_KEY?.trim();
-  const apiSecret = process.env.STREAM_API_SECRET?.trim();
+const apiKey = process.env.STREAM_API_KEY;
+const apiSecret = process.env.STREAM_API_SECRET;
 
-  if (!apiKey || !apiSecret) {
-    throw new Error(
-      `STREAM CONFIG ERROR -> API Key present: ${!!apiKey}, API Secret present: ${!!apiSecret}`
-    );
-  }
+if (!apiKey || !apiSecret) {
+  throw new Error("Stream API key or secret is missing");
+}
 
-  if (!userId) {
-    throw new Error("STREAM CONFIG ERROR -> userId is undefined");
-  }
+// ================================
+// CHAT SERVER CLIENT
+// ================================
+export const streamChatClient = StreamChat.getInstance(
+  apiKey,
+  apiSecret
+);
 
-  const serverClient = StreamChat.getInstance(apiKey, apiSecret);
-  return serverClient.createToken(userId.toString());
-};
+// ================================
+// VIDEO SERVER CLIENT
+// ================================
+export const streamVideoClient = new StreamClient(
+  apiKey,
+  apiSecret
+);
 
-// 2. Export upsertStreamUser (Missing export fixed here)
-export const upsertStreamUser = async (userData) => {
+// ================================
+// STREAM USER UPSERT
+// ================================
+export const upsertStreamUser = async (user) => {
   try {
-    const apiKey = process.env.STREAM_API_KEY?.trim();
-    const apiSecret = process.env.STREAM_API_SECRET?.trim();
-
-    if (!apiKey || !apiSecret) {
-      console.error("❌ STREAM_API_KEY or STREAM_API_SECRET is missing!");
-      return;
-    }
-
-    if (!userData || (!userData.id && !userData._id)) {
-      console.error("❌ Invalid user data passed to upsertStreamUser");
-      return;
-    }
-
-    const serverClient = StreamChat.getInstance(apiKey, apiSecret);
-    const userId = (userData.id || userData._id).toString();
-
-    await serverClient.upsertUser({
-      id: userId,
-      name: userData.name || userData.fullName || "User",
-      image: userData.image || userData.profilePic || userData.profilePicture || "",
+    await streamChatClient.upsertUser({
+      id: user.id || user._id.toString(),
+      name:
+        user.name ||
+        user.fullName ||
+        user.email ||
+        "User",
+      image:
+        user.image ||
+        user.profilePicture ||
+        "",
     });
 
-    console.log(`✅ Stream user upserted successfully: ${userId}`);
+    console.log(
+      "✅ Stream user upserted:",
+      user.id || user._id.toString()
+    );
   } catch (error) {
-    console.error("❌ Error upserting user in Stream:", error?.message || error);
+    console.error(
+      "❌ Stream user upsert error:",
+      error
+    );
+    throw error;
   }
+};
+
+// ================================
+// CHAT TOKEN
+// ================================
+export const generateStreamChatToken = (userId) => {
+  return streamChatClient.createToken(
+    userId.toString()
+  );
+};
+
+// ================================
+// VIDEO TOKEN
+// ================================
+export const generateStreamVideoToken = (userId) => {
+  return streamVideoClient.generateUserToken({
+    user_id: userId.toString(),
+  });
 };

@@ -1,31 +1,21 @@
-import { generateStreamToken } from "../lib/stream.js";
+import { generateStreamChatToken } from "../lib/stream.js";
 
-export async function getStreamToken(req, res) {
+export const getStreamToken = async (req, res) => {
   try {
-    console.log("=== GET STREAM TOKEN REQUEST RECEIVED ===");
-    console.log("Auth User ID:", req.user?._id?.toString());
-
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized - User details not found in request",
-      });
-    }
-
     const userId = req.user._id.toString();
-    const token = generateStreamToken(userId);
 
-    console.log("✅ Token successfully generated for user:", userId);
+    const token = generateStreamChatToken(userId);
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       token,
     });
   } catch (error) {
-    console.error("🔥 CRITICAL 500 ERROR IN getStreamToken:", error);
-    return res.status(500).json({
+    console.error("Stream chat token error:", error);
+
+    res.status(500).json({
       success: false,
-      message: error.message || "Failed to generate stream token",
+      message: "Failed to generate Stream Chat token",
     });
   }
-}
+};

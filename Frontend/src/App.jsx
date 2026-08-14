@@ -77,7 +77,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </StreamChatProvider>
-        </StreamVideoProvider>
+        // </StreamVideoProvider>
       ) : (
         <Routes>
           {/* Onboarding */}

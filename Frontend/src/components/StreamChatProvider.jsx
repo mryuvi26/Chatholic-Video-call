@@ -10,7 +10,8 @@ import { StreamChat } from "stream-chat";
 import useAuthUser from "../hooks/useAuthUser";
 import { getStreamToken } from "../lib/api";
 
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+const STREAM_API_KEY =
+  import.meta.env.VITE_STREAM_API_KEY;
 
 const StreamChatContext = createContext(null);
 
@@ -18,11 +19,14 @@ export function useStreamChat() {
   return useContext(StreamChatContext);
 }
 
-export default function StreamChatProvider({ children }) {
+export default function StreamChatProvider({
+  children,
+}) {
   const { authUser } = useAuthUser();
 
   const [client, setClient] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(true);
+  const [isConnecting, setIsConnecting] =
+    useState(true);
 
   useEffect(() => {
     if (!authUser?._id) {
@@ -41,36 +45,50 @@ export default function StreamChatProvider({ children }) {
           "Initializing Global Stream Chat Client..."
         );
 
+        console.log(
+          "CHAT API KEY:",
+          STREAM_API_KEY
+        );
+
         if (!STREAM_API_KEY) {
           throw new Error(
             "VITE_STREAM_API_KEY is missing"
           );
         }
 
-        const tokenData = await getStreamToken();
+        const tokenData =
+          await getStreamToken();
+
+        console.log(
+          "CHAT TOKEN RECEIVED:",
+          !!tokenData?.token
+        );
 
         if (!tokenData?.token) {
           throw new Error(
-            "Stream token was not received"
+            "Stream Chat token was not received"
           );
         }
 
-        const chatClient =
-          StreamChat.getInstance(STREAM_API_KEY);
+        const userId =
+          authUser._id.toString();
 
-        // Disconnect previous user if necessary
+        const chatClient =
+          StreamChat.getInstance(
+            STREAM_API_KEY
+          );
+
         if (
           chatClient.userID &&
-          chatClient.userID !== authUser._id.toString()
+          chatClient.userID !== userId
         ) {
           await chatClient.disconnectUser();
         }
 
-        // Connect current user
         if (!chatClient.userID) {
           await chatClient.connectUser(
             {
-              id: authUser._id.toString(),
+              id: userId,
               name:
                 authUser.fullName ||
                 authUser.email ||
@@ -91,11 +109,11 @@ export default function StreamChatProvider({ children }) {
         setClient(chatClient);
 
         console.log(
-          "Global Stream Chat client connected"
+          "✅ Global Stream Chat client connected"
         );
       } catch (error) {
         console.error(
-          "Error initializing Stream Chat:",
+          "❌ Error initializing Stream Chat:",
           error
         );
 
@@ -113,21 +131,20 @@ export default function StreamChatProvider({ children }) {
 
     return () => {
       isMounted = false;
-
-      // Don't disconnect here on every component rerender.
-      // The provider itself controls the connection.
     };
   }, [authUser?._id]);
 
   useEffect(() => {
     return () => {
       if (client) {
-        client.disconnectUser().catch((error) => {
-          console.warn(
-            "Error disconnecting Stream Chat:",
-            error
-          );
-        });
+        client
+          .disconnectUser()
+          .catch((error) => {
+            console.warn(
+              "Stream Chat disconnect error:",
+              error
+            );
+          });
       }
     };
   }, [client]);

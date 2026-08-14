@@ -8,9 +8,12 @@ import {
 import useAuthUser from "../hooks/useAuthUser";
 import { getStreamToken } from "../lib/api";
 
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+const STREAM_API_KEY =
+  import.meta.env.VITE_STREAM_API_KEY;
 
-export default function StreamVideoProvider({ children }) {
+export default function StreamVideoProvider({
+  children,
+}) {
   const { authUser } = useAuthUser();
 
   const [client, setClient] = useState(null);
@@ -26,7 +29,9 @@ export default function StreamVideoProvider({ children }) {
 
     const initializeClient = async () => {
       try {
-        console.log("Initializing Global Stream Video Client...");
+        console.log(
+          "Initializing Global Stream Video Client..."
+        );
 
         if (!STREAM_API_KEY) {
           throw new Error(
@@ -36,9 +41,9 @@ export default function StreamVideoProvider({ children }) {
 
         const tokenData = await getStreamToken();
 
-        if (!tokenData?.token) {
+        if (!tokenData?.videoToken) {
           throw new Error(
-            "Stream token was not received from backend"
+            "Stream Video token was not received from backend"
           );
         }
 
@@ -60,13 +65,14 @@ export default function StreamVideoProvider({ children }) {
         videoClient = new StreamVideoClient({
           apiKey: STREAM_API_KEY,
           user,
-          token: tokenData.token,
+          token: tokenData.videoToken,
         });
 
         if (isMounted) {
           setClient(videoClient);
+
           console.log(
-            "Global Stream Video client connected"
+            "Global Stream Video client initialized successfully"
           );
         }
       } catch (error) {
