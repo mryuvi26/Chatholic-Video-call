@@ -11,6 +11,7 @@ import chatRoutes from "./routes/chat.route.js";
 import { connectDB } from "./lib/db.js";
 
 const app = express();
+
 const PORT = process.env.PORT || 3001;
 
 // ES Module __dirname setup
@@ -45,14 +46,22 @@ app.use("/api/chat", chatRoutes);
 // =========================
 
 if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../../Frontend/dist");
+  const distPath = path.join(
+    __dirname,
+    "../../Frontend/dist"
+  );
 
-  console.log("Serving frontend from:", distPath);
+  console.log(
+    "Serving frontend from:",
+    distPath
+  );
 
   app.use(express.static(distPath));
 
   app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
+    res.sendFile(
+      path.join(distPath, "index.html")
+    );
   });
 }
 
@@ -64,11 +73,21 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+    app.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `Server is running on port ${PORT}`
+        );
+      }
+    );
   } catch (error) {
-    console.error("Failed to start server:", error);
+    console.error(
+      "Failed to start server:",
+      error
+    );
+
     process.exit(1);
   }
 };
