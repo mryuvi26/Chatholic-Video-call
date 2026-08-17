@@ -25,15 +25,11 @@ const CallPage = () => {
   const { id: callId } = useParams();
   const navigate = useNavigate();
 
-  const { authUser, isLoading } =
-    useAuthUser();
-
-  const videoClient =
-    useStreamVideoClient();
+  const { authUser, isLoading } = useAuthUser();
+  const videoClient = useStreamVideoClient();
 
   const [call, setCall] = useState(null);
-  const [isConnecting, setIsConnecting] =
-    useState(true);
+  const [isConnecting, setIsConnecting] = useState(true);
 
   useEffect(() => {
     if (
@@ -50,10 +46,7 @@ const CallPage = () => {
 
     const initializeCall = async () => {
       try {
-        console.log(
-          "Initializing call:",
-          callId
-        );
+        console.log("Initializing call:", callId);
 
         callInstance = videoClient.call(
           "default",
@@ -62,9 +55,7 @@ const CallPage = () => {
 
         await callInstance.getOrCreate();
 
-        if (isCancelled) {
-          return;
-        }
+        if (isCancelled) return;
 
         setCall(callInstance);
 
@@ -80,13 +71,7 @@ const CallPage = () => {
           await callInstance.join();
         }
 
-        if (isCancelled) {
-          await callInstance
-            .leave()
-            .catch(() => {});
-
-          return;
-        }
+        if (isCancelled) return;
 
         setIsConnecting(false);
 
@@ -120,17 +105,16 @@ const CallPage = () => {
       isCancelled = true;
 
       if (callInstance) {
-        callInstance
-          .leave()
-          .catch((error) =>
-            console.warn(
-              "Cleanup leave:",
-              error
-            )
-          );
-      }
+        const state =
+          callInstance.state.callingState;
 
-      setCall(null);
+        if (
+          state !== CallingState.LEFT &&
+          state !== CallingState.IDLE
+        ) {
+          callInstance.leave().catch(() => {});
+        }
+      }
     };
   }, [
     authUser?._id,
@@ -164,11 +148,8 @@ const CallContent = () => {
     useParticipants,
   } = useCallStateHooks();
 
-  const callingState =
-    useCallCallingState();
-
-  const participants =
-    useParticipants();
+  const callingState = useCallCallingState();
+  const participants = useParticipants();
 
   const [hasRemoteJoined, setHasRemoteJoined] =
     useState(false);
@@ -176,8 +157,7 @@ const CallContent = () => {
   const remoteParticipants =
     participants.filter(
       (participant) =>
-        participant.userId !==
-        call?.currentUserId
+        participant.userId !== call?.currentUserId
     );
 
   useEffect(() => {
@@ -186,25 +166,22 @@ const CallContent = () => {
     }
   }, [remoteParticipants.length]);
 
-  useEffect(() => {
-    if (
-      hasRemoteJoined &&
-      remoteParticipants.length === 0
-    ) {
-      toast("Call ended by the other user.");
+useEffect(() => {
+  if (
+    hasRemoteJoined &&
+    remoteParticipants.length === 0
+  ) {
+    toast("Call ended by the other user.");
 
-      call?.leave().catch(() => {});
-
-      navigate("/", {
-        replace: true,
-      });
-    }
-  }, [
-    hasRemoteJoined,
-    remoteParticipants.length,
-    call,
-    navigate,
-  ]);
+    navigate("/", {
+      replace: true,
+    });
+  }
+}, [
+  hasRemoteJoined,
+  remoteParticipants.length,
+  navigate,
+]);
 
   useEffect(() => {
     if (callingState === CallingState.LEFT) {

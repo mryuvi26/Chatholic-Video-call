@@ -111,34 +111,23 @@ const ChatPage = () => {
     targetUserId,
   ]);
 
-  const handleVideoCall = async () => {
-    if (
-      !videoClient ||
-      !authUser?._id ||
-      !targetUserId
-    ) {
-      toast.error(
-        "Video call is not ready yet."
-      );
-      return;
-    }
+const handleVideoCall = async () => {
+  if (!videoClient || !authUser?._id || !targetUserId) {
+    toast.error("Video call is not ready yet.");
+    return;
+  }
 
-    try {
-      console.log("Starting video call...");
+  try {
+    console.log("Starting video call...");
 
-      const callId = crypto.randomUUID();
+    const callId = crypto.randomUUID();
 
-      const call = videoClient.call(
-        "default",
-        callId
-      );
+    const call = videoClient.call("default", callId);
 
-      await call.getOrCreate({
-        ring: true,
-        video: true,
-      });
-
-      await call.updateCall({
+    await call.getOrCreate({
+      ring: true,
+      video: true,
+      data: {
         members: [
           {
             user_id: authUser._id.toString(),
@@ -147,25 +136,21 @@ const ChatPage = () => {
             user_id: targetUserId.toString(),
           },
         ],
-      });
+      },
+    });
 
-      console.log(
-        "Video call created successfully:",
-        callId
-      );
+    console.log(
+      "Video call created successfully:",
+      callId
+    );
 
-      navigate(`/call/${callId}`);
-    } catch (error) {
-      console.error(
-        "Error starting video call:",
-        error
-      );
+    navigate(`/call/${callId}`);
+  } catch (error) {
+    console.error("Error starting video call:", error);
 
-      toast.error(
-        "Could not start video call."
-      );
-    }
-  };
+    toast.error("Could not start video call.");
+  }
+};
 
   if (
     loading ||
