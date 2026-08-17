@@ -61,10 +61,10 @@ export default function StreamChatProvider({
 
         console.log(
           "CHAT TOKEN RECEIVED:",
-          !!tokenData?.token
+          !!tokenData?.chatToken
         );
 
-        if (!tokenData?.token) {
+        if (!tokenData?.chatToken) {
           throw new Error(
             "Stream Chat token was not received"
           );
@@ -97,7 +97,7 @@ export default function StreamChatProvider({
                 authUser.profilePicture ||
                 "",
             },
-            tokenData.token
+            tokenData.chatToken
           );
         }
 

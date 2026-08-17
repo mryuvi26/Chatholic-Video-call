@@ -59,9 +59,7 @@ export const upsertStreamUser = async (user) => {
 // CHAT TOKEN
 // ================================
 export const generateStreamChatToken = (userId) => {
-  return streamChatClient.createToken(
-    userId.toString()
-  );
+  return streamChatClient.createToken(userId.toString());
 };
 
 // ================================
