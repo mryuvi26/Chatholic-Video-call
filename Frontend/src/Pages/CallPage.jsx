@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   useNavigate,
@@ -16,20 +17,35 @@ import {
 } from "@stream-io/video-react-sdk";
 
 import toast from "react-hot-toast";
+
 import PageLoader from "../components/PageLoader";
 import useAuthUser from "../hooks/useAuthUser";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 
+// ======================================================
+// CALL PAGE
+// ======================================================
+
 const CallPage = () => {
   const { id: callId } = useParams();
   const navigate = useNavigate();
 
-  const { authUser, isLoading } = useAuthUser();
-  const videoClient = useStreamVideoClient();
+  const {
+    authUser,
+    isLoading,
+  } = useAuthUser();
+
+  const videoClient =
+    useStreamVideoClient();
 
   const [call, setCall] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(true);
+  const [isConnecting, setIsConnecting] =
+    useState(true);
+
+  // ====================================================
+  // INITIALIZE CALL
+  // ====================================================
 
   useEffect(() => {
     if (
@@ -41,56 +57,86 @@ const CallPage = () => {
       return;
     }
 
-    let isCancelled = false;
+    let cancelled = false;
     let callInstance = null;
 
     const initializeCall = async () => {
       try {
-        console.log("Initializing call:", callId);
+        console.log(
+          "Initializing call:",
+          callId
+        );
+
+        // ----------------------------------------------
+        // CREATE CALL INSTANCE
+        // ----------------------------------------------
 
         callInstance = videoClient.call(
           "default",
           callId
         );
 
-        await callInstance.getOrCreate();
-
-        if (isCancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         setCall(callInstance);
 
+        // ----------------------------------------------
+        // CHECK CURRENT STATE
+        // ----------------------------------------------
+
         const currentState =
           callInstance.state.callingState;
+
+        console.log(
+          "Current call state:",
+          currentState
+        );
+
+        // ----------------------------------------------
+        // JOIN ONLY IF NECESSARY
+        // ----------------------------------------------
 
         if (
           currentState !== CallingState.JOINED &&
           currentState !== CallingState.JOINING
         ) {
-          console.log("Joining call...");
+          console.log(
+            "Joining call..."
+          );
 
           await callInstance.join();
+
+          console.log(
+            "Successfully joined call:",
+            callId
+          );
+        } else {
+          console.log(
+            "Already joining/joined call:",
+            currentState
+          );
         }
 
-        if (isCancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         setIsConnecting(false);
 
-        console.log(
-          "Successfully joined call:",
-          callId
-        );
       } catch (error) {
         console.error(
           "Error joining call:",
           error
         );
 
-        if (!isCancelled) {
+        if (!cancelled) {
+          setIsConnecting(false);
+
           toast.error(
             "Could not connect to the call."
           );
-
-          setIsConnecting(false);
 
           navigate("/", {
             replace: true,
@@ -101,21 +147,50 @@ const CallPage = () => {
 
     initializeCall();
 
+    // ==================================================
+    // CLEANUP
+    // ==================================================
+
     return () => {
-      isCancelled = true;
+      cancelled = true;
+
+      console.log(
+        "CallPage cleanup."
+      );
+
+      /*
+       * IMPORTANT:
+       *
+       * We leave the call ONLY from CallPage.
+       *
+       * IncomingCall never joins the call.
+       */
 
       if (callInstance) {
         const state =
           callInstance.state.callingState;
 
+        console.log(
+          "Call cleanup state:",
+          state
+        );
+
         if (
           state !== CallingState.LEFT &&
           state !== CallingState.IDLE
         ) {
-          callInstance.leave().catch(() => {});
+          callInstance
+            .leave()
+            .catch((error) => {
+              console.error(
+                "Error leaving call:",
+                error
+              );
+            });
         }
       }
     };
+
   }, [
     authUser?._id,
     videoClient,
@@ -123,6 +198,10 @@ const CallPage = () => {
     isLoading,
     navigate,
   ]);
+
+  // ====================================================
+  // LOADING
+  // ====================================================
 
   if (
     isLoading ||
@@ -132,6 +211,10 @@ const CallPage = () => {
     return <PageLoader />;
   }
 
+  // ====================================================
+  // CALL
+  // ====================================================
+
   return (
     <StreamCall call={call}>
       <CallContent />
@@ -139,8 +222,13 @@ const CallPage = () => {
   );
 };
 
+// ======================================================
+// CALL CONTENT
+// ======================================================
+
 const CallContent = () => {
   const navigate = useNavigate();
+
   const call = useCall();
 
   const {
@@ -148,51 +236,162 @@ const CallContent = () => {
     useParticipants,
   } = useCallStateHooks();
 
-  const callingState = useCallCallingState();
-  const participants = useParticipants();
+  const callingState =
+    useCallCallingState();
 
-  const [hasRemoteJoined, setHasRemoteJoined] =
-    useState(false);
+  const participants =
+    useParticipants();
+
+  const [
+    hasRemoteJoined,
+    setHasRemoteJoined,
+  ] = useState(false);
+
+  // ====================================================
+  // DEBUG PARTICIPANTS
+  // ====================================================
+
+  useEffect(() => {
+    console.log(
+      "========== CALL PARTICIPANTS =========="
+    );
+
+    console.table(
+      participants.map((participant) => ({
+        userId: participant.userId,
+        sessionId: participant.sessionId,
+        name:
+          participant.name ||
+          participant.user?.name ||
+          "Unknown",
+        isLocal:
+          participant.userId ===
+          call?.currentUserId,
+      }))
+    );
+
+    console.log(
+      "Current User:",
+      call?.currentUserId
+    );
+
+    console.log(
+      "Total Participants:",
+      participants.length
+    );
+
+    const uniqueUsers =
+      new Set(
+        participants.map(
+          (participant) =>
+            participant.userId
+        )
+      );
+
+    const uniqueSessions =
+      new Set(
+        participants.map(
+          (participant) =>
+            participant.sessionId
+        )
+      );
+
+    console.log(
+      "Unique Users:",
+      uniqueUsers.size
+    );
+
+    console.log(
+      "Unique Sessions:",
+      uniqueSessions.size
+    );
+  }, [
+    participants,
+    call,
+  ]);
+
+  // ====================================================
+  // REMOTE PARTICIPANTS
+  // ====================================================
 
   const remoteParticipants =
     participants.filter(
       (participant) =>
-        participant.userId !== call?.currentUserId
+        participant.userId !==
+        call?.currentUserId
     );
 
+  // ====================================================
+  // DETECT REMOTE USER
+  // ====================================================
+
   useEffect(() => {
-    if (remoteParticipants.length > 0) {
+    if (
+      remoteParticipants.length > 0
+    ) {
       setHasRemoteJoined(true);
     }
-  }, [remoteParticipants.length]);
+  }, [
+    remoteParticipants.length,
+  ]);
 
-useEffect(() => {
-  if (
-    hasRemoteJoined &&
-    remoteParticipants.length === 0
-  ) {
-    toast("Call ended by the other user.");
-
-    navigate("/", {
-      replace: true,
-    });
-  }
-}, [
-  hasRemoteJoined,
-  remoteParticipants.length,
-  navigate,
-]);
+  // ====================================================
+  // REMOTE USER LEFT
+  // ====================================================
 
   useEffect(() => {
-    if (callingState === CallingState.LEFT) {
+    if (
+      hasRemoteJoined &&
+      remoteParticipants.length === 0 &&
+      callingState === CallingState.JOINED
+    ) {
+      console.log(
+        "Remote participant left the call."
+      );
+
+      toast(
+        "Call ended by the other user."
+      );
+
       navigate("/", {
         replace: true,
       });
     }
-  }, [callingState, navigate]);
+  }, [
+    hasRemoteJoined,
+    remoteParticipants.length,
+    callingState,
+    navigate,
+  ]);
+
+  // ====================================================
+  // LOCAL USER LEFT
+  // ====================================================
+
+  useEffect(() => {
+    if (
+      callingState === CallingState.LEFT
+    ) {
+      console.log(
+        "Local user left the call."
+      );
+
+      navigate("/", {
+        replace: true,
+      });
+    }
+  }, [
+    callingState,
+    navigate,
+  ]);
+
+  // ====================================================
+  // RECONNECTING
+  // ====================================================
 
   if (
-    callingState === CallingState.RECONNECTING
+    callingState ===
+    CallingState.RECONNECTING
   ) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -203,8 +402,13 @@ useEffect(() => {
     );
   }
 
+  // ====================================================
+  // JOINING
+  // ====================================================
+
   if (
-    callingState === CallingState.JOINING
+    callingState ===
+    CallingState.JOINING
   ) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -213,17 +417,24 @@ useEffect(() => {
     );
   }
 
+  // ====================================================
+  // JOINED
+  // ====================================================
+
   if (
-    callingState === CallingState.JOINED
+    callingState ===
+    CallingState.JOINED
   ) {
     return (
       <StreamTheme>
         <div className="h-screen w-full bg-base-300 relative">
+
           <SpeakerLayout />
 
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50">
             <CallControls />
           </div>
+
         </div>
       </StreamTheme>
     );
@@ -233,3 +444,4 @@ useEffect(() => {
 };
 
 export default CallPage;
+
