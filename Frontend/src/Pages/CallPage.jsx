@@ -251,64 +251,6 @@ const CallContent = () => {
   // DEBUG PARTICIPANTS
   // ====================================================
 
-  useEffect(() => {
-    console.log(
-      "========== CALL PARTICIPANTS =========="
-    );
-
-    console.table(
-      participants.map((participant) => ({
-        userId: participant.userId,
-        sessionId: participant.sessionId,
-        name:
-          participant.name ||
-          participant.user?.name ||
-          "Unknown",
-        isLocal:
-          participant.userId ===
-          call?.currentUserId,
-      }))
-    );
-
-    console.log(
-      "Current User:",
-      call?.currentUserId
-    );
-
-    console.log(
-      "Total Participants:",
-      participants.length
-    );
-
-    const uniqueUsers =
-      new Set(
-        participants.map(
-          (participant) =>
-            participant.userId
-        )
-      );
-
-    const uniqueSessions =
-      new Set(
-        participants.map(
-          (participant) =>
-            participant.sessionId
-        )
-      );
-
-    console.log(
-      "Unique Users:",
-      uniqueUsers.size
-    );
-
-    console.log(
-      "Unique Sessions:",
-      uniqueSessions.size
-    );
-  }, [
-    participants,
-    call,
-  ]);
 
   // ====================================================
   // REMOTE PARTICIPANTS
